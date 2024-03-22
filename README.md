@@ -1,6 +1,6 @@
-# PTS - PSEUDONYMS TRACKING FRAMEWORK (VTC Fall 2023)
+# PTF - PSEUDONYMS TRACKING FRAMEWORK (VTC Fall 2023)
 
-This is the official GitHub repository for the paper "Are VANETs pseudonyms effective? An experimental evaluation of pseudonym tracking in adversarial scenario", presented at VTC Fall 2023. The repository contains our code implementation and instructions on how to run the PTS framework.
+This is the official GitHub repository for the paper "Are VANETs pseudonyms effective? An experimental evaluation of pseudonym tracking in adversarial scenario", presented at VTC Fall 2023. The repository contains our code implementation and instructions on how to run the PTF framework.
 
 To perform our simulation we use the VM offered by [VEINS](https://veins.car2x.org/) extending it by installing [F2MD](https://github.com/josephkamel/F2MD) framework. We simulate the attacker antennas using the RSU dislocated over the [MASA](https://www.automotivesmartarea.it/) scenario.
 
@@ -71,7 +71,7 @@ To test our tracking framework follow these steps:
     ```
     Where 'pc' represent the PCS and the csv files contains all the message eavesdropped by the three antenna strategically dislocated in the scenario.
     
-    **IMPORTANT:** The directory structure must reflect the one shown to ensure proper functioning of the PTS.
+    **IMPORTANT:** The directory structure must reflect the one shown to ensure proper functioning of the PTF.
 
 3. Run the tracker framework considering a the first Pseudonyms Change Scheme(Periodical). Change 'pc' arguments for changing the PCS analyzed.
 
@@ -80,7 +80,7 @@ To test our tracking framework follow these steps:
     ```
 
     The output results: \
-    ![alt text](./terminal_output.png "PTS OUTPUT")
+    ![alt text](./terminal_output.png "PTF OUTPUT")
 
 
 4. **OPTIONAL** To automatically run the tracking framework considering all the Pseudonyms Change Scheme (PCS) and the message frequency:
