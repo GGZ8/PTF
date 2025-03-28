@@ -62,9 +62,9 @@ def mean_pseudonyms_change(path):
         if os.path.exists(file_name) and os.path.isfile(file_name):
             data.append(pd.read_csv(file_name))
         else:
-            logging.error(f'File {file_name} not found')
+            logging.error('File %s not found', file_name)
             raise FileNotFoundError
-    
+
     data = pd.concat(data, axis=0, ignore_index=True)
     data.sort_values(by='t', inplace=True)
 
@@ -72,8 +72,9 @@ def mean_pseudonyms_change(path):
     vehicles_num = len(pd.unique(data['realID'].values))
     pseudonyms_num = len(pseudonyms)
 
-    logging.info(f'TOTAL VEHICLES {vehicles_num}, PSEUDONYMS: {pseudonyms_num}')
-    logging.info(f'{bcolors.RED}PSEUDONYMS PER VEHICLE (MEAN): {round((pseudonyms_num/vehicles_num), 2)}{bcolors.RESET}')
+    logging.info('TOTAL VEHICLES %s, PSEUDONYMS: %s', vehicles_num, pseudonyms_num)
+    logging.info('%sPSEUDONYMS PER VEHICLE (MEAN): %s%s', bcolors.RED, round((pseudonyms_num/vehicles_num), 2), bcolors.RESET)
+
     return data, pseudonyms
 
 def pseudonym_change_events(dataframe, pseudonyms):
@@ -257,21 +258,22 @@ def local_change(dataframe, pseudonyms, beacon_interval, results, dimensions=Fal
 
     to_remove_pseudonyms = np.empty(0)
     time_tolerance = beacon_interval*0.5
-    
+
     if dimensions:
         logging.info('Using vehicles dimensions as filter')
         if not ('length' in dataframe.columns and 'width' in dataframe.columns):
             logging.error('Columns length and width required')
             raise ValueError
-    
+
+    last_pos = None
     for p in tqdm(pseudonyms.tolist()):
         last_seen = dataframe.loc[(dataframe['pseudonym'] == p) & (dataframe['event'] == 'x')]
 
         if last_seen.empty:
             continue
-        
+
         assert len(last_seen) == 1, f'MULTIPLE EXITS EVENTS FOR PSEUDONYM: {p}, {last_seen}'
-        
+
         last_seen = last_seen.iloc[0]
         last_seen_time = last_seen['t']
         # last_seen_rsu = int(last_seen['rsu'])
@@ -279,23 +281,23 @@ def local_change(dataframe, pseudonyms, beacon_interval, results, dimensions=Fal
         possible_match = dataframe.loc[(dataframe['event'] == 'e') | (dataframe['event'] == 'ex')]
         time_interval = possible_match['t'].between(last_seen_time, last_seen_time + beacon_interval + time_tolerance)
         possible_match = possible_match[time_interval]
-        
+
         if dimensions:
             last_seen_width = last_seen['width']
             last_seen_length = last_seen['length']
             possible_match = possible_match.loc[(possible_match['length'] == last_seen_length) & (possible_match['width'] == last_seen_width)]
-        
+
         filter_pos_x = possible_match['pos.x'].between(last_seen['pos.x'] - POS_TOLERANCE, last_seen['pos.x'] + POS_TOLERANCE)
         filter_pos_y = possible_match['pos.y'].between(last_seen['pos.y'] - POS_TOLERANCE, last_seen['pos.y'] + POS_TOLERANCE)
         possible_match = possible_match[(filter_pos_x) & (filter_pos_y)]
 
         heading_filter = possible_match['angle'].between(last_seen['angle'] - ANGLE_TOLERANCE, last_seen['angle'] + ANGLE_TOLERANCE)
         possible_match = possible_match[heading_filter]
-        
+
         # possible_match = possible_match.loc[dataframe['rsu'] == last_seen_rsu]
 
+        last_pos = np.array((last_seen['pos.x'], last_seen['pos.y'], 0))
         if not possible_match.empty:
-            last_pos = np.array((last_seen['pos.x'], last_seen['pos.y'], 0))
             possible_match['distance'] = possible_match.apply(lambda row: np.linalg.norm(last_pos - np.array((row['pos.x'], row['pos.y'], 0))), axis=1)
             possible_match = possible_match.sort_values(by='distance')
 
@@ -344,7 +346,7 @@ def local_results(results, fn):
     recall = tp/(tp+fn)
 
     f1_score = 2 * ((precision * recall)/(precision + recall))
-    logging.info(f"{bcolors.GREEN}METRICS -> PRECISION: {'{:.5f}'.format(precision)}, RECALL: {'{:.5f}'.format(recall)}, F1 SCORE: {'{:.5f}'.format(f1_score)}{bcolors.RESET}")
+    logging.info("%sMETRICS -> PRECISION: %s, RECALL: %s, F1 SCORE: %s%s\n", bcolors.GREEN, '{precision:.5f}', '{recall:.5f}', '{f1_score:.5f}', bcolors.RESET)
     return precision, recall, f1_score
 
 def filter_dataframe(dataframe, pseudonyms):
@@ -367,7 +369,7 @@ def filter_dataframe(dataframe, pseudonyms):
     vehicles = np.array(dataframe['realID'].unique())
     to_remove_pseudonyms = np.empty(0)
 
-    for v in vehicles.tolist():
+    for v in vehicles.tolist(): # type: ignore
         vehicles_pseudonyms = np.array(dataframe.loc[dataframe['realID'] == v]['pseudonym'].unique())
         if len(vehicles_pseudonyms) == 1:
             to_remove_pseudonyms = np.append(to_remove_pseudonyms, np.where(pseudonyms == vehicles_pseudonyms))
@@ -403,13 +405,13 @@ def analyze(path, freq, dimensions):
     """
     logging.info('Pseudonym change mean...')
     dataframe, pseudonyms = mean_pseudonyms_change(path)
-    
+
     logging.info('Getting pseudonym change events...')
     events = pseudonym_change_events(dataframe, pseudonyms)
 
     logging.info('Checking for local pseudonym change...')
     beacon_interval = 1/freq
-    
+
     results = {'tp': 0, 'fp': 0}
     pseudonyms = local_change(events, pseudonyms, beacon_interval, results, dimensions)
     pseudonyms = filter_dataframe(dataframe, pseudonyms)
@@ -438,8 +440,8 @@ def main(base_folder, freq, policy, dimensions):
     """
     path = f'{base_folder}/fq_{freq}Hz/pc_{policy}'
     path_if_directory(path)
-    logging.info(f'Analyze data in \'{path}\'')
-    
+    logging.info('Analyze data in \'%s\'', path)
+
     precision, recall, f1_score = analyze(path, freq, dimensions)
 
     results_file = 'results.csv'
@@ -448,18 +450,18 @@ def main(base_folder, freq, policy, dimensions):
     else:
         head = False
 
-    with open(results_file, 'a') as f:
+    with open(results_file, 'a', encoding='utf-8') as f:
         if head:
             f.write('fq,pc,prec,recall,f1_score\n')
         f.write(f'{freq}, {policy}, {precision}, {recall}, {f1_score}\n')
-        
+
 
 def path_if_directory(s):
     try:
         p = Path(s)
     except (TypeError, ValueError) as e:
         raise ArgumentTypeError(f"Invalid argument '{s}': '{e}'") from e
-    
+
     if not p.is_dir():
         raise ArgumentTypeError(f"'{s}' is not a valid directory path")
     return p
@@ -468,7 +470,7 @@ if __name__ == "__main__":
     FORMAT = '\n[%(asctime)s]:[%(levelname)s] %(message)s'
     logging.basicConfig(format=FORMAT, level=logging.DEBUG, datefmt='%d/%m/%y %H:%M:%S:%m')
     parser = ArgumentParser()
-    
+
     parser.add_argument("-dir", "--directory", help="Specify the base directory", required=True, type=path_if_directory)
     parser.add_argument("-fq", "--freq", help="Insert the desired frequency", required=True, type=int, choices=[1, 2, 5, 10])
     parser.add_argument("-pc", "--policy", help="Insert the desired policy", required=True, type=int, choices=[i for i in range(1,6)])
