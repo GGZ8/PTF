@@ -11,7 +11,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-class bcolors:
+class Bcolors:
     HEADER = '\033[95m'
     BLUE = '\033[94m'
     CYAN = '\033[96m'
@@ -22,7 +22,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-# NUMBER OF EAVESDROPPING ANTENNA 
+# NUMBER OF EAVESDROPPING ANTENNA
 ANTENNA_NUM = 3
 # MEAN DISTANCE BETWEEN TWO CONSECUTIVE BSM
 MEAN_DISTANCE = 25
@@ -60,7 +60,7 @@ def mean_pseudonyms_change(path):
     for i in range(0, ANTENNA_NUM):
         file_name = f'{path}/{FILE_NAME.format(num=i)}'
         if os.path.exists(file_name) and os.path.isfile(file_name):
-            data.append(pd.read_csv(file_name))
+            data.append(pd.read_csv(file_name, engine='pyarrow'))
         else:
             logging.error('File %s not found', file_name)
             raise FileNotFoundError
@@ -73,7 +73,7 @@ def mean_pseudonyms_change(path):
     pseudonyms_num = len(pseudonyms)
 
     logging.info('TOTAL VEHICLES %s, PSEUDONYMS: %s', vehicles_num, pseudonyms_num)
-    logging.info('%sPSEUDONYMS PER VEHICLE (MEAN): %s%s', bcolors.RED, round((pseudonyms_num/vehicles_num), 2), bcolors.RESET)
+    logging.info('%sPSEUDONYMS PER VEHICLE (MEAN): %s%s', Bcolors.RED, round((pseudonyms_num/vehicles_num), 2), Bcolors.RESET)
 
     return data, pseudonyms
 
@@ -116,7 +116,7 @@ def pseudonym_change_events(dataframe, pseudonyms):
     dataframe.drop(useless_idx, inplace=True)
     actual_dim = len(dataframe)
 
-    assert previus_dim != actual_dim, 'DATA-FRAME NOT REDUCED'
+    assert previus_dim != actual_dim, 'DATAFRAME NOT REDUCED'
 
     dataframe['angle'] = dataframe.apply(lambda row: heading_to_angle(row['heading.x'], row['heading.y']), axis=1)
     dataframe['speed'] = dataframe.apply(lambda row: np.sqrt(row['speed.x']**2 + row['speed.y']**2), axis=1)
@@ -147,7 +147,7 @@ def near(value1, value2, tolerance):
         return True
     else:
         return False
-    
+
 def heading_to_angle(x_heading, y_heading):
     """Function which converts the two heading vector components to an angle measured in degrees (0° - 360°)
 
@@ -211,10 +211,9 @@ def possible_candidate_found(dataframe, matched_idx, last_seen, results, pseudon
     else:
         results['fp'] += 1
 
-    matched_pseudonym = last_seen['pseudonym']
-    dataframe.drop(dataframe[dataframe['pseudonym'] == matched_pseudonym].index, inplace=True)
-    to_remove_pseudonyms = np.append(to_remove_pseudonyms, np.where(pseudonyms == matched_pseudonym))
-    
+    dataframe.drop(dataframe[dataframe['pseudonym'] == last_seen['pseudonym']].index, inplace=True)
+    to_remove_pseudonyms = np.append(to_remove_pseudonyms, np.where(pseudonyms == last_seen['pseudonym']))
+
     return dataframe, to_remove_pseudonyms
 
 def local_change(dataframe, pseudonyms, beacon_interval, results, dimensions=False):
@@ -346,7 +345,7 @@ def local_results(results, fn):
     recall = tp/(tp+fn)
 
     f1_score = 2 * ((precision * recall)/(precision + recall))
-    logging.info("%sMETRICS -> PRECISION: %s, RECALL: %s, F1 SCORE: %s%s\n", bcolors.GREEN, '{precision:.5f}', '{recall:.5f}', '{f1_score:.5f}', bcolors.RESET)
+    logging.info("%sMETRICS -> PRECISION: %s, RECALL: %s, F1 SCORE: %s%s\n", Bcolors.GREEN, f'{precision:.5f}', f'{recall:.5f}', f'{f1_score:.5f}', Bcolors.RESET)
     return precision, recall, f1_score
 
 def filter_dataframe(dataframe, pseudonyms):
@@ -445,15 +444,15 @@ def main(base_folder, freq, policy, dimensions):
     precision, recall, f1_score = analyze(path, freq, dimensions)
 
     results_file = 'results.csv'
-    if os.stat(results_file).st_size == 0:
-        head = True
-    else:
+    try:
+        head = os.stat(results_file).st_size == 0
+    except FileNotFoundError:
         head = False
 
     with open(results_file, 'a', encoding='utf-8') as f:
         if head:
             f.write('fq,pc,prec,recall,f1_score\n')
-        f.write(f'{freq}, {policy}, {precision}, {recall}, {f1_score}\n')
+        f.write(f'{freq},{policy},{precision},{recall},{f1_score}\n')
 
 
 def path_if_directory(s):
